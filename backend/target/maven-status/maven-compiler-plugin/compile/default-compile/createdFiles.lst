@@ -1,0 +1,8 @@
+com\cloudshare\config\SecurityConfig.class
+com\cloudshare\service\FileService.class
+com\cloudshare\repository\FileRepository.class
+com\cloudshare\service\PaymentService.class
+com\cloudshare\model\FileDocument.class
+com\cloudshare\CloudShareApplication.class
+com\cloudshare\controller\PaymentController.class
+com\cloudshare\controller\FileController.class
