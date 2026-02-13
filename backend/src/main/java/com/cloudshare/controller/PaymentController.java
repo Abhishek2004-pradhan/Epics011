@@ -17,11 +17,12 @@ public class PaymentController {
     private final PaymentService paymentService;
 
     @PostMapping("/create-order")
-    public ResponseEntity<String> createOrder(@RequestBody Map<String, Object> data) {
+    public ResponseEntity<Object> createOrder(@RequestBody Map<String, Object> data) {
         try {
             int amount = Integer.parseInt(data.get("amount").toString());
-            String order = paymentService.createOrder(amount);
-            return ResponseEntity.ok(order);
+            String orderJson = paymentService.createOrder(amount);
+            // Convert JSON string to Map so Spring Boot sends it as application/json
+            return ResponseEntity.ok(new org.json.JSONObject(orderJson).toMap());
         } catch (RazorpayException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }

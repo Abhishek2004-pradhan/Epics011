@@ -7,27 +7,55 @@ import api, { setAuthToken } from '../lib/api';
 const Sidebar = () => {
     const { currentUser, logout } = useAuth();
 
+    const loadRazorpay = (src) => {
+        return new Promise((resolve) => {
+            const script = document.createElement('script');
+            script.src = src;
+            script.onload = () => resolve(true);
+            script.onerror = () => resolve(false);
+            document.body.appendChild(script);
+        });
+    };
+
     const handlePayment = async () => {
+        const res = await loadRazorpay('https://checkout.razorpay.com/v1/checkout.js');
+
+        if (!res) {
+            alert('Razorpay SDK failed to load. Are you online?');
+            return;
+        }
+
         try {
             await setAuthToken();
             const amount = 500; // INR
             const response = await api.post('/payments/create-order', { amount });
-            const order = JSON.parse(response.data);
+            // The backend might return a parsed object or a JSON string
+            const order = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
 
             const options = {
                 key: import.meta.env.VITE_RAZORPAY_KEY_ID,
-                amount: order.amount,
-                currency: "INR",
+                amount: order.amount.toString(),
+                currency: order.currency,
                 name: "CloudShare Pro",
                 description: "Upgrade to 100GB Storage",
                 order_id: order.id,
                 handler: async function (response) {
                     try {
+                        const data = {
+                            razorpay_payment_id: response.razorpay_payment_id,
+                            razorpay_order_id: response.razorpay_order_id,
+                            razorpay_signature: response.razorpay_signature
+                        };
                         await setAuthToken();
-                        await api.post('/payments/verify', response);
-                        alert("Payment Successful! You are now a Pro member.");
+                        const verifyResult = await api.post('/payments/verify', data);
+                        if (verifyResult.data) {
+                            alert("Payment Successful! You are now a Pro member.");
+                        } else {
+                            alert("Payment verification failed.");
+                        }
                     } catch (e) {
-                        alert("Payment Verification Failed");
+                        console.error("Verification Error:", e);
+                        alert("Payment Verification Failed: " + (e.response?.data || e.message));
                     }
                 },
                 prefill: {
@@ -43,8 +71,9 @@ const Sidebar = () => {
             rzp.open();
 
         } catch (error) {
-            console.error("Payment failed", error);
-            alert("Failed to initiate payment. Check console.");
+            console.error("Payment Error:", error);
+            const errorMsg = error.response?.data || error.message;
+            alert("Payment failed: " + errorMsg);
         }
     };
 

@@ -58,7 +58,9 @@ public class FileService {
             newFile.setOwnerId(ownerId);
             newFile.setPublic(false);
 
-            return fileRepository.save(newFile);
+            FileDocument savedFile = fileRepository.save(newFile);
+            transformFile(savedFile);
+            return savedFile;
 
         } catch (IOException ex) {
             throw new RuntimeException("Could not store file " + fileName + ". Please try again!", ex);
@@ -79,21 +81,31 @@ public class FileService {
         }
     }
 
-    public List<FileDocument> getFilesByOwner(String ownerId) {
-        List<FileDocument> files = fileRepository.findByOwnerId(ownerId);
-        // Transform the URL to be a full API path for the frontend
-        files.forEach(file -> {
-            // Assuming the file.getUrl() actually stores the filename from uploadFile
-            // We return a viewable URL
-            String filename = file.getUrl();
-            file.setUrl("http://localhost:8085/api/files/" + filename + "/view");
-        });
+    public List<FileDocument> getFilesByOwner(String ownerId, String name) {
+        List<FileDocument> files;
+        if (name != null && !name.isEmpty()) {
+            files = fileRepository.findByOwnerIdAndNameContainingIgnoreCase(ownerId, name);
+        } else {
+            files = fileRepository.findByOwnerId(ownerId);
+        }
+
+        // Sort by creation date descending by default
+        files.sort((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()));
+
+        files.forEach(this::transformFile);
         return files;
+    }
+
+    private void transformFile(FileDocument file) {
+        String id = file.getId();
+        // Return a viewable URL for the frontend
+        file.setUrl("http://localhost:8085/api/files/" + id + "/view");
     }
 
     public void deleteFile(String id) {
         FileDocument file = fileRepository.findById(id).orElseThrow(() -> new RuntimeException("File not found"));
         try {
+            // file.getUrl() stores the filename in the DB
             Path fileToDeletePath = this.fileStorageLocation.resolve(file.getUrl());
             Files.deleteIfExists(fileToDeletePath);
         } catch (IOException e) {
@@ -109,6 +121,16 @@ public class FileService {
     public FileDocument togglePublic(String id) {
         FileDocument file = fileRepository.findById(id).orElseThrow(() -> new RuntimeException("File not found"));
         file.setPublic(!file.isPublic());
-        return fileRepository.save(file);
+        FileDocument savedFile = fileRepository.save(file);
+        transformFile(savedFile);
+        return savedFile;
+    }
+
+    public FileDocument renameFile(String id, String newName) {
+        FileDocument file = fileRepository.findById(id).orElseThrow(() -> new RuntimeException("File not found"));
+        file.setName(newName);
+        FileDocument savedFile = fileRepository.save(file);
+        transformFile(savedFile);
+        return savedFile;
     }
 }

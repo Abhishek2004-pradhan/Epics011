@@ -29,9 +29,11 @@ public class FileController {
     }
 
     @GetMapping
-    public ResponseEntity<List<FileDocument>> getFiles(Principal principal) {
+    public ResponseEntity<List<FileDocument>> getFiles(
+            Principal principal,
+            @RequestParam(value = "name", required = false) String name) {
         String ownerId = principal != null ? principal.getName() : "test-user";
-        return ResponseEntity.ok(fileService.getFilesByOwner(ownerId));
+        return ResponseEntity.ok(fileService.getFilesByOwner(ownerId, name));
     }
 
     @DeleteMapping("/{id}")
@@ -41,27 +43,37 @@ public class FileController {
     }
 
     @GetMapping("/{id}/view")
-    public ResponseEntity<org.springframework.core.io.Resource> viewFile(@PathVariable String id) {
+    public ResponseEntity<org.springframework.core.io.Resource> viewFile(
+            @PathVariable String id,
+            @RequestParam(value = "download", defaultValue = "false") boolean download) {
         FileDocument file = fileService.getFile(id);
-        org.springframework.core.io.Resource resource = fileService.loadFileAsResource(file.getUrl()); // file.getUrl()
-                                                                                                       // stores
-                                                                                                       // filename
+        org.springframework.core.io.Resource resource = fileService.loadFileAsResource(file.getUrl());
 
         String contentType = "application/octet-stream";
         if (file.getType() != null) {
             contentType = file.getType();
         }
 
+        String disposition = download ? "attachment" : "inline";
+
         return ResponseEntity.ok()
                 .contentType(org.springframework.http.MediaType.parseMediaType(contentType))
                 .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION,
-                        "inline; filename=\"" + file.getName() + "\"")
+                        disposition + "; filename=\"" + file.getName() + "\"")
                 .body(resource);
     }
 
     @PatchMapping("/{id}/toggle-public")
     public ResponseEntity<FileDocument> togglePublic(@PathVariable String id) {
         FileDocument updatedFile = fileService.togglePublic(id);
+        return ResponseEntity.ok(updatedFile);
+    }
+
+    @PatchMapping("/{id}/rename")
+    public ResponseEntity<FileDocument> renameFile(@PathVariable String id,
+            @RequestBody java.util.Map<String, String> body) {
+        String newName = body.get("name");
+        FileDocument updatedFile = fileService.renameFile(id, newName);
         return ResponseEntity.ok(updatedFile);
     }
 }

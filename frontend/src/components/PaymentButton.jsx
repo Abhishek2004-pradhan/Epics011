@@ -40,12 +40,8 @@ const PaymentButton = () => {
                 return;
             }
 
-            // The backend returns a String representation of the Order object, we need to parse it if it's JSON
-            // But if it's just a string, we might need to be careful. 
-            // Let's assume the controller returns a JSON string or object.
-            // Actually PaymentController returns ResponseEntity<String> order.toString().
-            // Razorpay Order.toString() returns JSON.
-            const order = JSON.parse(result.data);
+            // The backend might return a parsed object or a JSON string
+            const order = typeof result.data === 'string' ? JSON.parse(result.data) : result.data;
 
             const options = {
                 key: import.meta.env.VITE_RAZORPAY_KEY_ID, // Enter the Key ID generated from the Dashboard
@@ -88,7 +84,8 @@ const PaymentButton = () => {
 
         } catch (error) {
             console.error("Payment Error:", error);
-            alert("Payment failed or cancelled.");
+            const errorMsg = error.response?.data || error.message;
+            alert("Payment failed: " + errorMsg);
         } finally {
             setLoading(false);
         }

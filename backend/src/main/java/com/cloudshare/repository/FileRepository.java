@@ -10,5 +10,7 @@ import java.util.List;
 public interface FileRepository extends MongoRepository<FileDocument, String> {
     List<FileDocument> findByOwnerId(String ownerId);
 
+    List<FileDocument> findByOwnerIdAndNameContainingIgnoreCase(String ownerId, String name);
+
     List<FileDocument> findByIsPublicTrue();
 }
